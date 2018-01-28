@@ -1,13 +1,27 @@
 // 引入需要的库
 const cheerio = require('cheerio')
 const request = require('superagent')
+const mysql = require('mysql-activerecord')
 
 // 定义常量
 const URL = 'http://www.tjgpc.gov.cn/webInfo/getWebInfoListForwebInfoClass.do?fkWebInfoclassId=W001_001'
 const KEYWORD = '天津市财政局'
+const SERVER = 'localhost'
+const USERNAME = 'root'
+const PWD = ''
+const DB = 'test'
 
 // 定义变量，annoIdxArr为保存公告目录信息的数组，pageArr为保存公告每页链接的数组
 let annoIdxArr = [], pageArr = []
+
+// 连接到MySQL数据库
+let db = new mysql.Adapter({
+    server: SERVER,
+    username: USERNAME,
+    password: PWD,
+    database: DB,
+    reconnectTimeout: 2000
+})
 
 // 将共用方法提取成函数
 function getIndicesInPage(res, selector, arr) {
@@ -35,8 +49,21 @@ request.post(URL).type('form').send('keyWord=' + encodeURIComponent(KEYWORD)).en
         console.log(err.message)
     }
     getIndicesInPage(res, 'div.cur>table>tbody>tr', annoIdxArr)
-    // 增加完成后打印数组annoIdxArr
-    console.log(annoIdxArr)
+    // 对数组进行循环，将循环结果的每个对象insert到数据库
+    for (let index = 0; index < annoIdxArr.length; index++) {
+        const element = annoIdxArr[index]
+        db.insert('procure_data', {
+            procure_type: element.procureType,
+            announce_name: element.annoName,
+            announce_date: element.annoDate,
+            announce_link: element.annoLink
+        }, (err, info) => {
+            if (err) {
+                console.log(err)
+            }
+            console.log(info)
+        })
+    }
 })
 
 // 取每页的链接并保存到pageArr数组
@@ -52,5 +79,4 @@ request.post(URL).type('form').send('keyWord=' + encodeURIComponent(KEYWORD)).en
         let pageUrl = `http://www.tjgpc.gov.cn/webInfo/getWebInfoListForwebInfoClass.do?fkWebInfoclassId=W005_001&page=${i}&pagesize=10`
         pageArr.push(pageUrl)
     }
-    console.log(pageArr)
 })
