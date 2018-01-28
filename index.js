@@ -28,17 +28,6 @@ function getIndicesInPage(res, selector, arr) {
     })
 }
 
-// 取默认公告页面第一页的目录信息
-request.get(URL).end((err, res) => {
-    // 如失败则返回错误信息
-    if (err) {
-        console.log(err.message)
-    }
-    getIndicesInPage(res, 'div.cur>table>tbody>tr', annoIdxArr)
-    // 增加完成后打印数组annoIdxArr
-    console.log(annoIdxArr)
-})
-
 // 取关键字为“天津市财政局”公告页面第一页的目录信息
 request.post(URL).type('form').send('keyWord=' + encodeURIComponent(KEYWORD)).end((err, res) => {
     // 如失败则返回错误信息
