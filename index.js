@@ -11,8 +11,8 @@ const USERNAME = 'root'
 const PWD = ''
 const DB = 'test'
 
-// 定义变量，annoIdxArr为保存公告目录信息的数组，pageArr为保存公告每页链接的数组
-let annoIdxArr = [], pageArr = []
+// 定义变量，pageArr为保存公告每页链接的数组
+let pageArr = []
 
 // 连接到MySQL数据库
 let db = new mysql.Adapter({
@@ -42,41 +42,47 @@ function getIndicesInPage(res, selector, arr) {
     })
 }
 
-// 取关键字为“天津市财政局”公告页面第一页的目录信息
-request.post(URL).type('form').send('keyWord=' + encodeURIComponent(KEYWORD)).end((err, res) => {
-    // 如失败则返回错误信息
-    if (err) {
-        console.log(err.message)
-    }
-    getIndicesInPage(res, 'div.cur>table>tbody>tr', annoIdxArr)
-    // 对数组进行循环，将循环结果的每个对象insert到数据库
-    for (let index = 0; index < annoIdxArr.length; index++) {
-        const element = annoIdxArr[index]
-        db.insert('procure_data', {
-            procure_type: element.procureType,
-            announce_name: element.annoName,
-            announce_date: element.annoDate,
-            announce_link: element.annoLink
-        }, (err, info) => {
-            if (err) {
-                console.log(err)
-            }
-            console.log(info)
-        })
-    }
-})
-
-// 取每页的链接并保存到pageArr数组
+// 将所有关键字为“天津市财政局”的公告目录信息取出，并保存到数据库，步骤如下：
+// 1、取每页的链接并保存到pageArr数组
+// 2、遍历pageArr数组，并依次访问各页；
+// 3、用之前定义的函数提取数据，并将提取的数据保存到数据库
 request.post(URL).type('form').send('keyWord=' + encodeURIComponent(KEYWORD)).end((err, res) => {
     if (err) {
         console.log(err.message)
     }
     let $ = cheerio.load(res.text)
-    // 取得“共有xx页”的页码
+    // 第一步：取得“共有xx页”的页码
     let pageNum = $('div.pager>span>font:nth-child(2)').text()
     // 进行for循环，将页码写到URL中，并将URL保存到数组pageUrl
     for (let i = 1; i <= pageNum; i++) {
         let pageUrl = `http://www.tjgpc.gov.cn/webInfo/getWebInfoListForwebInfoClass.do?fkWebInfoclassId=W005_001&page=${i}&pagesize=10`
         pageArr.push(pageUrl)
+    }
+    // 第二步
+    for (let a in pageArr) {
+        request.post(pageArr[a]).type('form').send('keyWord=' + encodeURIComponent(KEYWORD)).end((err, res) => {
+            // 定义局部变量，annoIdxArr为保存公告目录信息的数组
+            let annoIdxArr = []
+            if (err) {
+                console.log(err.message)
+            }
+            // 第三步：提取数据并保存在作用域内的annoIdxArr数组
+            getIndicesInPage(res, 'div.cur>table>tbody>tr', annoIdxArr)
+            // 将annoIdxArr数组保存在数据库
+            for (let index = 0; index < annoIdxArr.length; index++) {
+                const element = annoIdxArr[index]
+                db.insert('procure_data', {
+                    procure_type: element.procureType,
+                    announce_name: element.annoName,
+                    announce_date: element.annoDate,
+                    announce_link: element.annoLink
+                }, (err, info) => {
+                    if (err) {
+                        console.log(err)
+                    }
+                    console.log(info)
+                })
+            }
+        })
     }
 })
