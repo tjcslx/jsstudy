@@ -23,7 +23,11 @@ let db = new mysql.Adapter({
     reconnectTimeout: 2000
 })
 
-// 将共用方法提取成函数
+/** 将共用方法提取成函数
+ * @param  {string} res Request的返回值
+ * @param  {string} selector 查找元素对应的选择器
+ * @param  {Object[]} arr 保存元素的数组
+ */
 function getIndicesInPage(res, selector, arr) {
     // 装载返回的HTML文档，赋值给$
     let $ = cheerio.load(res.text)
@@ -71,16 +75,30 @@ request.post(URL).type('form').send('keyWord=' + encodeURIComponent(KEYWORD)).en
             // 将annoIdxArr数组保存在数据库
             for (let index = 0; index < annoIdxArr.length; index++) {
                 const element = annoIdxArr[index]
-                db.insert('procure_data', {
-                    procure_type: element.procureType,
-                    announce_name: element.annoName,
-                    announce_date: element.annoDate,
-                    announce_link: element.annoLink
-                }, (err, info) => {
+                // 访问数组中的明细页面，并获取公告信息及附件链接，获取后保存到数组中的每个对象中
+                request.get(element.annoLink).end((err, res) => {
                     if (err) {
-                        console.log(err)
+                        console.log(err.message)
                     }
-                    console.log(info)
+                    let $ = cheerio.load(res.text)
+                    let content = $('div.xx_right>center>table>tbody>tr:nth-child(3)').text()
+                    let link = $('div.xx_right>center>table>tbody>tr:nth-child(3)>td.xx').find('a').attr('href')
+                    element.annoDetails = content
+                    element.annoAttachmentLink = link
+                    // 将完整的数组保存到数据库
+                    db.insert('procure_data', {
+                        procure_type: element.procureType,
+                        announce_name: element.annoName,
+                        announce_date: element.annoDate,
+                        announce_link: element.annoLink,
+                        announce_details: element.annoDetails,
+                        announce_attachment_link: element.annoAttachmentLink
+                    }, (err, info) => {
+                        if (err) {
+                            console.log(err)
+                        }
+                        console.log(info)
+                    })
                 })
             }
         })
