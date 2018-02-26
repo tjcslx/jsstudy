@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "cheerio": "^1.0.0-rc.2",
+    "echarts": "3",
     "mysql-activerecord": "^0.8.6",
     "superagent": "^3.8.2"
   }
